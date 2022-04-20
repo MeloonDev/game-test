@@ -3230,6 +3230,19 @@ e=>this._OnJobWorkerMessage(e)}catch(err){this._hadErrorCreatingWorker=true;this
 
 {
 self["C3_Shaders"] = {};
+self["C3_Shaders"]["glass"] = {
+	glsl: "varying mediump vec2 vTex;\nuniform lowp sampler2D samplerFront;\nuniform mediump vec2 srcStart;\nuniform mediump vec2 srcEnd;\nuniform lowp sampler2D samplerBack;\nuniform mediump vec2 destStart;\nuniform mediump vec2 destEnd;\nuniform mediump vec2 pixelSize;\nuniform mediump float magnification;\nvoid main(void)\n{\nlowp vec4 front = texture2D(samplerFront, vTex);\nmediump vec2 tex = (vTex - srcStart) / (srcEnd - srcStart);\nmediump float src = front.r * 0.299 + front.g * 0.587 + front.b * 0.114;\nmediump vec3 front2 = texture2D(samplerFront, vTex + vec2(pixelSize.x, 0.0)).rgb;\nmediump vec3 front3 = texture2D(samplerFront, vTex + vec2(0.0, pixelSize.y)).rgb;\nmediump vec2 diff = vec2(src - (front2.r * 0.299 + front2.g * 0.587 + front2.b * 0.114),\nsrc - (front3.r * 0.299 + front3.g * 0.587 + front3.b * 0.114));\nmediump vec2 p = tex + diff * pixelSize * magnification * 64.0 * front.a;\ngl_FragColor = texture2D(samplerBack, mix(destStart, destEnd, p));\n}",
+	wgsl: "%%SAMPLERFRONT_BINDING%% var samplerFront : sampler;\n%%TEXTUREFRONT_BINDING%% var textureFront : texture_2d<f32>;\n%%SAMPLERBACK_BINDING%% var samplerBack : sampler;\n%%TEXTUREBACK_BINDING%% var textureBack : texture_2d<f32>;\nstruct ShaderParams {\nmagnification : f32;\n};\n%%SHADERPARAMS_BINDING%% var<uniform> shaderParams : ShaderParams;\n%%C3PARAMS_STRUCT%%\n%%C3_UTILITY_FUNCTIONS%%\n%%FRAGMENTINPUT_STRUCT%%\n%%FRAGMENTOUTPUT_STRUCT%%\n@stage(fragment)\nfn main(input : FragmentInput) -> FragmentOutput\n{\nvar pixelSize : vec2<f32> = c3_getPixelSize(textureFront);\nvar front : vec4<f32> = textureSample(textureFront, samplerFront, input.fragUV);\nvar tex : vec2<f32> = c3_srcToNorm(input.fragUV);\nvar src : f32 = c3_grayscale(front.rgb);\nvar front2 : vec3<f32> = textureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(pixelSize.x, 0.0)).rgb;\nvar front3 : vec3<f32> = textureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelSize.y)).rgb;\nvar diff : vec2<f32> = vec2<f32>(\nsrc - c3_grayscale(front2.rgb),\nsrc - c3_grayscale(front3.rgb)\n);\nvar p : vec2<f32> = tex + diff * pixelSize * shaderParams.magnification * 64.0 * front.a;\nvar output : FragmentOutput;\noutput.color = textureSample(textureBack, samplerBack, mix(c3Params.destStart, c3Params.destEnd, p));\nreturn output;\n}",
+	blendsBackground: true,
+	usesDepth: false,
+	extendBoxHorizontal: 0,
+	extendBoxVertical: 0,
+	crossSampling: true,
+	mustPreDraw: false,
+	preservesOpaqueness: false,
+	animated: false,
+	parameters: [["magnification",0,"percent"]]
+};
 
 }
 
@@ -3810,10 +3823,12 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Sprite.Cnds.OnAnimFinished,
 		C3.Plugins.Sprite.Cnds.CompareInstanceVar,
 		C3.Plugins.Sprite.Acts.SetBoolInstanceVar,
-		C3.Plugins.Sprite.Acts.SetCollisions,
+		C3.Plugins.Sprite.Acts.SetEffectEnabled,
 		C3.Plugins.System.Acts.Wait,
+		C3.Plugins.Sprite.Acts.SetCollisions,
 		C3.Plugins.Mouse.Cnds.OnObjectClicked,
-		C3.Plugins.System.Acts.RestartLayout
+		C3.Plugins.System.Acts.RestartLayout,
+		C3.Plugins.Sprite.Cnds.OnCreated
 	];
 };
 self.C3_JsPropNameTable = [
@@ -3967,6 +3982,7 @@ self.C3_ExpressionFuncs = [
 		() => 10000,
 		() => "Death",
 		() => "Player Health",
+		() => "Glass",
 		() => 3,
 		() => 2,
 		() => 5,
